@@ -64,6 +64,12 @@
     }
   }
 
+  // Alterna favorito a través del store
+  async function handleToggleFavorite(id: string) {
+    moviesStore.clearError();
+    await moviesStore.toggleFavorite(id);
+  }
+
   // Elimina película a través del store
   async function handleDelete(id: string) {
     feedbackMessage = null;
@@ -84,6 +90,7 @@
   function handleCancelEdit() {
     editingMovie = null;
   }
+
 </script>
 
 <section class="container mx-auto px-4 py-8">
@@ -119,7 +126,7 @@
       {:else}
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {#each moviesStore.movies as movie (movie.id)}
-            <MovieCard {movie} ondelete={handleDelete} onedit={handleEdit} />
+            <MovieCard {movie} ondelete={handleDelete} onedit={handleEdit} ontogglefavorite={handleToggleFavorite} />
           {/each}
         </div>
       {/if}

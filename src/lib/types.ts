@@ -14,6 +14,7 @@ export interface Movie {
   director: string;
   posterUrl?: string | null;
   year?: number | null;
+  isFavorite?: boolean;
   createdAt?: string | null;
   updatedAt?: string | null;
   // TODO (UD4 - Video): añadir favorite?: boolean
