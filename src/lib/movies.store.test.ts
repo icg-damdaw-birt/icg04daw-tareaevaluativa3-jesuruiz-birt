@@ -18,6 +18,7 @@ vi.mock('./api.service', () => ({
     updateMovie: vi.fn(),
     deleteMovie: vi.fn(),
     toggleFavorite: vi.fn(),
+    rateMovie: vi.fn(),
   }
 }));
 
@@ -291,6 +292,84 @@ describe('Movies Store (Svelte 5 Runes)', () => {
       // ASSERT
       expect(ok).toBe(false);
       expect(moviesStore.error).toBe('Not found');
+      expect(moviesStore.mutating).toBe(false);
+    });
+  });
+
+  // ─── rateMovie ────────────────────────────────────────────────
+  describe('rateMovie()', () => {
+    it('debería actualizar el rating de una película (camino feliz)', async () => {
+      // ARRANGE
+      const movieWithoutRating: Movie = {
+        id: '1',
+        title: 'Inception',
+        director: 'Christopher Nolan',
+        year: 2010,
+        rating: 0,
+      };
+
+      vi.mocked(api.getMovies).mockResolvedValue([movieWithoutRating]);
+      await moviesStore.loadMovies();
+
+      const movie = moviesStore.movies[0];
+      const updatedMovie: Movie = { ...movie, rating: 4 };
+      vi.mocked(api.rateMovie).mockResolvedValue(updatedMovie);
+
+      // ACT
+      const ok = await moviesStore.rateMovie(movie, 4);
+
+      // ASSERT
+      expect(ok).toBe(true);
+      expect(movie.rating).toBe(4);
+      expect(api.rateMovie).toHaveBeenCalledWith(movie.id, 4);
+    });
+
+    it('debería rechazar rating fuera de rango (0..5) y no llamar a la API', async () => {
+      // ARRANGE
+      const movie: Movie = {
+        id: '1',
+        title: 'Inception',
+        director: 'Christopher Nolan',
+        year: 2010,
+        rating: 2,
+      };
+
+      vi.mocked(api.getMovies).mockResolvedValue([movie]);
+      await moviesStore.loadMovies();
+
+      // ACT
+      const ok = await moviesStore.rateMovie(movie, 6);
+
+      // ASSERT
+      expect(ok).toBe(false);
+      expect(movie.rating).toBe(2);
+      expect(api.rateMovie).not.toHaveBeenCalled();
+      expect(moviesStore.error).toBe('La valoración debe ser un número entre 0 y 5');
+    });
+
+    it('debería hacer rollback al rating anterior si la API falla', async () => {
+      // ARRANGE
+      const movie: Movie = {
+        id: '1',
+        title: 'Inception',
+        director: 'Christopher Nolan',
+        year: 2010,
+        rating: 3,
+      };
+
+      vi.mocked(api.getMovies).mockResolvedValue([movie]);
+      await moviesStore.loadMovies();
+
+      vi.mocked(api.rateMovie).mockRejectedValue(new Error('Error al guardar rating'));
+
+      // ACT
+      const ok = await moviesStore.rateMovie(movie, 5);
+
+      // ASSERT
+      expect(ok).toBe(false);
+      expect(api.rateMovie).toHaveBeenCalledWith(movie.id, 5);
+      expect(movie.rating).toBe(3);
+      expect(moviesStore.error).toBe('Error al guardar rating');
       expect(moviesStore.mutating).toBe(false);
     });
   });

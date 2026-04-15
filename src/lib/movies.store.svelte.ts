@@ -99,6 +99,40 @@ export const moviesStore = {
     }
   },
 
+  // Valorar película (optimistic update + rollback)
+  async rateMovie(movie: Movie, rating: number): Promise<boolean> {
+    mutating = true;
+    error = null;
+
+    // Validación de entrada: 0..5
+    if (typeof rating !== 'number' || Number.isNaN(rating) || rating < 0 || rating > 5) {
+      error = 'La valoración debe ser un número entre 0 y 5';
+      mutating = false;
+      return false;
+    }
+
+    const previousRating = movie.rating ?? 0;
+
+    // Optimistic update (Svelte 5 Runes: mutación directa)
+    movie.rating = rating;
+
+    try {
+      const updatedMovie = await api.rateMovie(movie.id, rating);
+
+      // Sincroniza posibles campos devueltos por backend
+      Object.assign(movie, updatedMovie);
+
+      return true;
+    } catch (err) {
+      // Rollback si falla la persistencia
+      movie.rating = previousRating;
+      error = err instanceof Error ? err.message : 'Error al actualizar valoración';
+      return false;
+    } finally {
+      mutating = false;
+    }
+  },
+
   // Limpiar estado completo
   reset() {
     movies = [];

@@ -406,6 +406,126 @@ describe('API Service - Autenticación', () => {
       }
     });
   });
+
+  // ==========================================
+  // GRUPO: Rate Movie
+  // ==========================================
+  describe('rateMovie', () => {
+    it('debería llamar a PATCH /api/movies/:id/rating con { rating }', async () => {
+      // ARRANGE
+      const token = 'valid-token';
+      authToken.set(token);
+
+      const ratedMovie = {
+        id: 'movie-1',
+        title: 'Inception',
+        director: 'Christopher Nolan',
+        year: 2010,
+        rating: 4,
+      };
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {
+          get: (name: string) => (name === 'content-type' ? 'application/json' : null),
+        },
+        json: async () => ratedMovie,
+      });
+
+      // ACT
+      const result = await api.rateMovie('movie-1', 4);
+
+      // ASSERT
+      expect(result).toEqual(ratedMovie);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      const callArgs = (globalThis.fetch as any).mock.calls[0];
+      expect(callArgs[0]).toBe('http://localhost:3000/api/movies/movie-1/rating');
+      expect(callArgs[1].method).toBe('PATCH');
+      expect(callArgs[1].body).toBe(JSON.stringify({ rating: 4 }));
+
+      const headers = callArgs[1].headers as Headers;
+      expect(headers.get('Authorization')).toBe(`Bearer ${token}`);
+      expect(headers.get('Content-Type')).toBe('application/json');
+    });
+
+    it('debería devolver la película con el rating actualizado', async () => {
+      // ARRANGE
+      authToken.set('valid-token');
+
+      const ratedMovie = {
+        id: 'movie-2',
+        title: 'The Matrix',
+        director: 'Wachowski Sisters',
+        year: 1999,
+        rating: 5,
+      };
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: {
+          get: (name: string) => (name === 'content-type' ? 'application/json' : null),
+        },
+        json: async () => ratedMovie,
+      });
+
+      // ACT
+      const result = await api.rateMovie('movie-2', 5);
+
+      // ASSERT
+      expect(result.rating).toBe(5);
+    });
+
+    it('debería lanzar ApiError si el rating es inválido (400)', async () => {
+      // ARRANGE
+      authToken.set('valid-token');
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        headers: {
+          get: (name: string) => (name === 'content-type' ? 'application/json' : null),
+        },
+        json: async () => ({ error: 'Rating inválido. Debe estar entre 0 y 5.' }),
+      });
+
+      // ACT & ASSERT
+      try {
+        await api.rateMovie('movie-1', 6);
+        expect(true).toBe(false);
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError);
+        expect((error as ApiError).status).toBe(400);
+        expect((error as ApiError).message).toBe('Rating inválido. Debe estar entre 0 y 5.');
+      }
+    });
+
+    it('debería lanzar ApiError si hay error del servidor (500)', async () => {
+      // ARRANGE
+      authToken.set('valid-token');
+
+      (globalThis.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        headers: {
+          get: (name: string) => (name === 'content-type' ? 'application/json' : null),
+        },
+        json: async () => ({ error: 'Error al actualizar rating' }),
+      });
+
+      // ACT & ASSERT
+      try {
+        await api.rateMovie('movie-1', 3);
+        expect(true).toBe(false);
+      } catch (error) {
+        expect(error).toBeInstanceOf(ApiError);
+        expect((error as ApiError).status).toBe(500);
+        expect((error as ApiError).message).toBe('Error al actualizar rating');
+      }
+    });
+  });
 });
 
 /**
